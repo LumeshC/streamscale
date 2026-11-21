@@ -1,0 +1,200 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: streamscale
+      POSTGRES_PASSWORD: streamscale
+      POSTGRES_DB: streamscale
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U streamscale -d streamscale"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - streamscale_pg:/var/lib/postgresql/data
+
+  # Real-time state only (Phase 4). Pure cache: no RDB/AOF persistence, bounded
+  # memory, LRU eviction among TTL'd keys (every processor key has a TTL).
+  # Losing this container loses only "last few minutes" views; PostgreSQL is the
+  # system of record.
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - volatile-lru
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  kafka:
+    image: apache/kafka:3.8.0
+    hostname: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --list"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+
+  kafka-init:
+    image: apache/kafka:3.8.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic events --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic events.dlq --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --describe --topic events
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --describe --topic events.dlq
+
+  stream-processor:
+    build:
+      context: ../..
+      dockerfile: stream-processor/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      # service_started, not service_healthy: the processor runs degraded
+      # without Redis, so Redis must not gate its startup.
+      redis:
+        condition: service_started
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: events
+      KAFKA_PARTITIONS: "3"
+      KAFKA_DLQ_TOPIC: events.dlq
+      KAFKA_DLQ_PARTITIONS: "3"
+      KAFKA_GROUP_ID: streamscale-processor
+      DATABASE_URL: postgres://streamscale:streamscale@postgres:5432/streamscale?sslmode=disable
+      HTTP_ADDR: ":8081"
+      PROCESSOR_MAX_RETRIES: "3"
+      PROCESSOR_RETRY_BASE_MS: "100"
+      PROCESSOR_RETRY_MAX_MS: "2000"
+      ANALYTICS_ENABLED: "true"
+      ANALYTICS_ALLOWED_LATENESS_MS: "30000"
+      REDIS_ENABLED: "true"
+      REDIS_ADDR: redis:6379
+      REDIS_POOL_SIZE: "20"
+      REDIS_OP_TIMEOUT_MS: "300"
+      REALTIME_USER_RATE_LIMIT: "50"
+      LOG_LEVEL: info
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  analytics-api:
+    build:
+      context: ../..
+      dockerfile: analytics-api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # The processor owns the schema (migrations); wait until it is healthy.
+      stream-processor:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      API_HTTP_ADDR: ":8082"
+      DATABASE_URL: postgres://streamscale:streamscale@postgres:5432/streamscale?sslmode=disable
+      API_DB_MAX_CONNS: "10"
+      API_REQUEST_TIMEOUT_MS: "5000"
+      REDIS_ENABLED: "true"
+      REDIS_ADDR: redis:6379
+      API_KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_GROUP_ID: streamscale-processor
+      KAFKA_TOPIC: events
+      LOG_LEVEL: info
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8082/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  dashboard:
+    build:
+      context: ../../dashboard
+    depends_on:
+      analytics-api:
+        condition: service_healthy
+    ports:
+      - "3000:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  event-generator:
+    build:
+      context: ../..
+      dockerfile: event-generator/Dockerfile
+    depends_on:
+      stream-processor:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: events
+      KAFKA_PARTITIONS: "3"
+      EVENT_RATE: "100"
+      EVENT_COUNT: "0"
+      HTTP_ADDR: ":8080"
+      LOG_LEVEL: info
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  streamscale_pg:

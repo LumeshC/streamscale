@@ -1,0 +1,756 @@
+openapi: 3.0.3
+info:
+  title: StreamScale Analytics API
+  version: 1.0.0
+  description: |
+    Read-only REST API over StreamScale's stream analytics.
+
+    **Data sources**
+    - Totals, time series, breakdowns and anomalies come from **closed** analytics
+      windows in PostgreSQL (`metrics_windows`), written by the stream-processor.
+      A window closes once the event-time watermark passes its end (allowed
+      lateness defaults to 30 s), so the newest ~1–2 minutes are not yet included.
+      `coverage` in `/metrics/overview` shows exactly which windows were summed.
+    - The `live` block of `/metrics/overview` comes from Redis (last N seconds,
+      best-effort). If Redis is unavailable the request still succeeds and
+      `degraded` contains `"live"`.
+
+    **Time ranges**: `from`/`to` are RFC 3339; the range is half-open `[from, to)`
+    and a window belongs to the range its `window_start` falls in. Defaults:
+    `to = now`, `from = to - 60m`. Maximum range: 7 days.
+
+    **Totals are always computed from tumbling 1-minute windows**, regardless of
+    `interval`: the 5-minute sliding windows overlap and would multiply-count.
+
+    **Pagination**: list endpoints are keyset-paginated, newest first. Pass the
+    `next_cursor` of a response as `cursor` with the same filters to get the next
+    page; it is absent on the last page. Cursors are opaque.
+
+    **Errors** always use the `ErrorResponse` envelope with a stable `code`.
+    Every response carries an `X-Request-ID` header (client-supplied if valid).
+
+    **Timeouts**: each request has a 5 s budget (configurable); exceeding it
+    returns `504` with code `timeout`.
+servers:
+  - url: http://localhost:8082
+    description: Docker Compose
+tags:
+  - name: health
+  - name: metrics
+  - name: operations
+  - name: anomalies
+  - name: docs
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Service and dependency health
+      description: |
+        `200` with status `ok` when all dependencies are reachable; `200` with
+        status `degraded` when an optional dependency (Redis for the live view,
+        Kafka for consumer lag) is down; `503` with status `unavailable` when
+        PostgreSQL (required) is down. Disabled dependencies report `disabled`.
+      operationId: getHealth
+      responses:
+        "200":
+          description: Healthy or degraded
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503":
+          description: PostgreSQL unreachable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+
+  /metrics/overview:
+    get:
+      tags: [metrics]
+      summary: Totals over a range plus the live real-time view
+      operationId: getOverview
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: live_window
+          in: query
+          description: Seconds covered by the live (Redis) block.
+          schema: { type: integer, minimum: 1, maximum: 900, default: 60 }
+      responses:
+        "200":
+          description: Overview
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Overview" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+
+  /metrics/events:
+    get:
+      tags: [metrics]
+      summary: Event-rate time series (paginated)
+      operationId: getEventSeries
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Interval"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Event series, newest first
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SeriesEnvelope"
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: "#/components/schemas/EventPoint" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+
+  /metrics/revenue:
+    get:
+      tags: [metrics]
+      summary: Purchases and revenue time series with a range summary (paginated)
+      description: Revenue is summed across currencies (no FX conversion), as stored by the processor.
+      operationId: getRevenueSeries
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Interval"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Revenue series, newest first
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SeriesEnvelope"
+                  - type: object
+                    required: [summary, data]
+                    properties:
+                      summary: { $ref: "#/components/schemas/RevenueSummary" }
+                      data:
+                        type: array
+                        items: { $ref: "#/components/schemas/RevenuePoint" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+
+  /metrics/payments:
+    get:
+      tags: [metrics]
+      summary: Payment success/failure time series with a range summary (paginated)
+      operationId: getPaymentSeries
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Interval"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Payment series, newest first
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SeriesEnvelope"
+                  - type: object
+                    required: [summary, data]
+                    properties:
+                      summary: { $ref: "#/components/schemas/PaymentSummary" }
+                      data:
+                        type: array
+                        items: { $ref: "#/components/schemas/PaymentPoint" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+
+  /metrics/regions:
+    get:
+      tags: [metrics]
+      summary: Event counts by region over a range
+      description: Not paginated — region cardinality is small and bounded.
+      operationId: getRegionBreakdown
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Regions sorted by events, descending
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Breakdown" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+
+  /metrics/event-types:
+    get:
+      tags: [metrics]
+      summary: Event counts by event type over a range
+      description: Every supported event type is always listed (0 when absent). Not paginated (7 types).
+      operationId: getEventTypeBreakdown
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: event_type
+          in: query
+          description: Return only this event type.
+          schema: { $ref: "#/components/schemas/EventType" }
+      responses:
+        "200":
+          description: Event types sorted by events, descending
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Breakdown" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+
+  /metrics/consumer-lag:
+    get:
+      tags: [operations]
+      summary: Kafka consumer-group lag of the stream-processor (point in time)
+      description: |
+        Per partition, `lag = log-end offset − committed offset` for the processor's
+        consumer group (as `kafka-consumer-groups.sh` reports). Without a commit, lag
+        is measured from the earliest retained offset. Read directly from Kafka on
+        each call; returns `503 unavailable` when Kafka is unreachable or not configured.
+      operationId: getConsumerLag
+      responses:
+        "200":
+          description: Lag snapshot
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConsumerLag" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+
+  /metrics/latency:
+    get:
+      tags: [operations]
+      summary: End-to-end processing latency percentiles
+      description: |
+        Latency per event = `ingested_at − timestamp`: from event creation at the
+        generator, through Kafka and the processor, to the PostgreSQL commit.
+        Percentiles are exact over events ingested in `[from, to)` (default last
+        15 minutes; maximum range 3 hours because percentiles read raw rows),
+        overall and per minute.
+      operationId: getLatency
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Latency summary and per-minute series (oldest first)
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Latency" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+
+  /errors:
+    get:
+      tags: [operations]
+      summary: Recent processing errors (dead-lettered messages, paginated)
+      description: |
+        Messages the processor sent to the DLQ (`processing_status.status = 'dlq'`),
+        newest first, with counts by failure reason and the error rate
+        (`dlq / (processed + duplicate + dlq)`) over the range. Default range: last 24 h.
+      operationId: listErrors
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: class
+          in: query
+          schema: { type: string, enum: [all, malformed, permanent, transient], default: all }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Errors, newest first
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+
+  /anomalies:
+    get:
+      tags: [anomalies]
+      summary: Statistical anomalies in 1-minute windows (paginated)
+      description: |
+        Evaluated on read with a rolling z-score over the previous 30 closed
+        1-minute windows (at least 10 required):
+        - `event_rate_spike` / `event_rate_drop`: events per minute vs. baseline
+          mean; standard deviation floored at the Poisson level `sqrt(mean)`.
+          Minutes with no closed window count as zero events (outage → drop).
+        - `payment_failure_spike`: window failure rate vs. pooled baseline rate
+          using the binomial standard error; needs ≥ 20 payments in the window.
+
+        Severity is `critical` when |z| ≥ 5, otherwise `warning`.
+      operationId: listAnomalies
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: kind
+          in: query
+          schema:
+            type: string
+            enum: [all, event_rate_spike, event_rate_drop, payment_failure_spike]
+            default: all
+        - name: severity
+          in: query
+          schema: { type: string, enum: [all, warning, critical], default: all }
+        - name: min_z
+          in: query
+          description: Minimum |z-score| to report.
+          schema: { type: number, minimum: 2, maximum: 10, default: 3 }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Anomalies, newest first
+          headers: { X-Request-ID: { $ref: "#/components/headers/RequestID" } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnomalyList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+
+  /openapi.yaml:
+    get:
+      tags: [docs]
+      summary: This OpenAPI document
+      operationId: getOpenAPI
+      responses:
+        "200":
+          description: OpenAPI 3.0 YAML
+          content:
+            application/yaml:
+              schema: { type: string }
+
+components:
+  headers:
+    RequestID:
+      description: Request correlation ID (echoes a valid client `X-Request-ID`, otherwise generated).
+      schema: { type: string }
+
+  parameters:
+    From:
+      name: from
+      in: query
+      description: Range start (inclusive), RFC 3339. Default `to - 60m`.
+      schema: { type: string, format: date-time }
+      example: "2026-11-20T10:00:00Z"
+    To:
+      name: to
+      in: query
+      description: Range end (exclusive), RFC 3339. Default now. `to - from` ≤ 7 days.
+      schema: { type: string, format: date-time }
+    Interval:
+      name: interval
+      in: query
+      description: |
+        Window granularity of the series: `1s` (tumbling 1 s), `1m` (tumbling 1 min),
+        `5m` (sliding 5 min, 1 min slide — points overlap).
+      schema: { type: string, enum: ["1s", "1m", "5m"], default: "1m" }
+    Limit:
+      name: limit
+      in: query
+      description: Page size.
+      schema: { type: integer, minimum: 1, maximum: 1000, default: 100 }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque `next_cursor` from the previous page.
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: Invalid parameters (`invalid_parameter`), with one `details` entry per problem.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example:
+            error:
+              code: invalid_parameter
+              message: one or more query parameters are invalid
+              details:
+                - { field: from, reason: "must be an RFC 3339 timestamp, e.g. 2026-01-02T15:04:05Z" }
+                - { field: limit, reason: "must be an integer between 1 and 1000" }
+            request_id: 3f9c0a6d2b1e4c5f8a7b6c5d
+    Internal:
+      description: Unexpected server error (`internal`). Details are logged, not returned.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Unavailable:
+      description: PostgreSQL is unreachable (`unavailable`).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Timeout:
+      description: The request exceeded its time budget (`timeout`).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [invalid_parameter, not_found, method_not_allowed, timeout, unavailable, internal]
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                required: [field, reason]
+                properties:
+                  field: { type: string }
+                  reason: { type: string }
+        request_id: { type: string }
+
+    Range:
+      type: object
+      required: [from, to]
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+
+    Page:
+      type: object
+      required: [limit]
+      properties:
+        limit: { type: integer }
+        next_cursor:
+          type: string
+          description: Absent on the last page.
+
+    Decimal:
+      type: string
+      pattern: '^-?\d+\.\d{2}$'
+      description: Exact decimal with two places, as a string.
+      example: "1234.50"
+
+    EventType:
+      type: string
+      enum: [LOGIN, LOGOUT, PAGE_VIEW, SEARCH, PURCHASE, PAYMENT_SUCCESS, PAYMENT_FAILURE]
+
+    Check:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, down, disabled] }
+        latency_ms: { type: number }
+        error: { type: string }
+
+    Health:
+      type: object
+      required: [status, checks, time]
+      properties:
+        status: { type: string, enum: [ok, degraded, unavailable] }
+        checks:
+          type: object
+          properties:
+            postgres: { $ref: "#/components/schemas/Check" }
+            redis: { $ref: "#/components/schemas/Check" }
+            kafka: { $ref: "#/components/schemas/Check" }
+        time: { type: string, format: date-time }
+
+    Overview:
+      type: object
+      required: [range, totals, coverage, live, degraded]
+      properties:
+        range: { $ref: "#/components/schemas/Range" }
+        totals:
+          type: object
+          required: [events, events_per_minute, purchases, revenue, revenue_per_minute,
+                     payment_success, payment_failure, payment_success_rate,
+                     payment_failure_rate, peak_active_users_per_minute, windows]
+          properties:
+            events: { type: integer, format: int64 }
+            events_per_minute: { type: number, description: "events / range minutes" }
+            purchases: { type: integer, format: int64 }
+            revenue: { $ref: "#/components/schemas/Decimal" }
+            revenue_per_minute: { $ref: "#/components/schemas/Decimal" }
+            payment_success: { type: integer, format: int64 }
+            payment_failure: { type: integer, format: int64 }
+            payment_success_rate: { type: number, minimum: 0, maximum: 1 }
+            payment_failure_rate: { type: number, minimum: 0, maximum: 1 }
+            peak_active_users_per_minute:
+              type: integer
+              format: int64
+              description: Max distinct users in any single 1-minute window (distinct users are not additive across windows).
+            windows: { type: integer, format: int64, description: "Closed 1-minute windows summed" }
+        coverage:
+          type: object
+          properties:
+            first_window_start: { type: string, format: date-time, nullable: true }
+            last_window_end: { type: string, format: date-time, nullable: true }
+        live:
+          nullable: true
+          description: Redis real-time view; null when Redis is disabled or unavailable.
+          allOf:
+            - $ref: "#/components/schemas/Live"
+        degraded:
+          type: array
+          description: Parts of the response that could not be produced (e.g. "live").
+          items: { type: string, enum: [live] }
+
+    Live:
+      type: object
+      properties:
+        as_of: { type: string, format: date-time }
+        window_seconds: { type: integer }
+        events: { type: integer, format: int64 }
+        events_per_second: { type: number }
+        purchases: { type: integer, format: int64 }
+        revenue: { $ref: "#/components/schemas/Decimal" }
+        payment_success_rate: { type: number }
+        active_users: { type: integer, format: int64, description: "Users seen in the last 5 minutes" }
+        by_event_type: { type: object, additionalProperties: { type: integer } }
+        by_region: { type: object, additionalProperties: { type: integer } }
+
+    SeriesEnvelope:
+      type: object
+      required: [range, interval, data, page]
+      properties:
+        range: { $ref: "#/components/schemas/Range" }
+        interval: { type: string, enum: ["1s", "1m", "5m"] }
+        data: { type: array, items: {} }
+        page: { $ref: "#/components/schemas/Page" }
+
+    EventPoint:
+      type: object
+      required: [window_start, window_end, events, events_per_second, events_per_minute, active_users]
+      properties:
+        window_start: { type: string, format: date-time }
+        window_end: { type: string, format: date-time }
+        events: { type: integer, format: int64 }
+        events_per_second: { type: number }
+        events_per_minute: { type: number }
+        active_users: { type: integer, format: int64 }
+
+    RevenuePoint:
+      type: object
+      required: [window_start, window_end, purchases, revenue, purchases_per_minute, revenue_per_minute]
+      properties:
+        window_start: { type: string, format: date-time }
+        window_end: { type: string, format: date-time }
+        purchases: { type: integer, format: int64 }
+        revenue: { $ref: "#/components/schemas/Decimal" }
+        purchases_per_minute: { type: number }
+        revenue_per_minute: { $ref: "#/components/schemas/Decimal" }
+
+    RevenueSummary:
+      type: object
+      required: [purchases, revenue, revenue_per_minute, average_order_value]
+      properties:
+        purchases: { type: integer, format: int64 }
+        revenue: { $ref: "#/components/schemas/Decimal" }
+        revenue_per_minute: { $ref: "#/components/schemas/Decimal" }
+        average_order_value: { $ref: "#/components/schemas/Decimal" }
+
+    PaymentPoint:
+      type: object
+      required: [window_start, window_end, success, failure, success_rate, failure_rate]
+      properties:
+        window_start: { type: string, format: date-time }
+        window_end: { type: string, format: date-time }
+        success: { type: integer, format: int64 }
+        failure: { type: integer, format: int64 }
+        success_rate: { type: number }
+        failure_rate: { type: number }
+
+    PaymentSummary:
+      type: object
+      required: [success, failure, total, success_rate, failure_rate]
+      properties:
+        success: { type: integer, format: int64 }
+        failure: { type: integer, format: int64 }
+        total: { type: integer, format: int64 }
+        success_rate: { type: number }
+        failure_rate: { type: number }
+
+    Breakdown:
+      type: object
+      required: [range, dimension, total_events, data]
+      properties:
+        range: { $ref: "#/components/schemas/Range" }
+        dimension: { type: string, enum: [region, event_type] }
+        total_events: { type: integer, format: int64 }
+        data:
+          type: array
+          items:
+            type: object
+            required: [key, events, share]
+            properties:
+              key: { type: string }
+              events: { type: integer, format: int64 }
+              share: { type: number, minimum: 0, maximum: 1 }
+
+    Anomaly:
+      type: object
+      required: [id, kind, metric, window_start, window_end, observed, expected, std_dev, z_score, severity]
+      properties:
+        id: { type: string, example: "event_rate_spike:2026-11-20T10:42:00Z" }
+        kind: { type: string, enum: [event_rate_spike, event_rate_drop, payment_failure_spike] }
+        metric: { type: string, enum: [events_per_minute, payment_failure_rate] }
+        window_start: { type: string, format: date-time }
+        window_end: { type: string, format: date-time }
+        observed: { type: number }
+        expected: { type: number, description: Baseline mean (or pooled rate) }
+        std_dev: { type: number }
+        z_score: { type: number }
+        severity: { type: string, enum: [warning, critical] }
+
+    ConsumerLag:
+      type: object
+      required: [group, topic, as_of, total_lag, end_offset_total, partitions]
+      properties:
+        group: { type: string, example: streamscale-processor }
+        topic: { type: string, example: events }
+        as_of: { type: string, format: date-time }
+        total_lag: { type: integer, format: int64 }
+        end_offset_total: { type: integer, format: int64, description: Sum of log-end offsets across partitions }
+        partitions:
+          type: array
+          items:
+            type: object
+            required: [partition, start_offset, end_offset, committed_offset, lag]
+            properties:
+              partition: { type: integer }
+              start_offset: { type: integer, format: int64 }
+              end_offset: { type: integer, format: int64 }
+              committed_offset: { type: integer, format: int64, description: "-1 when the group has not committed" }
+              lag: { type: integer, format: int64 }
+
+    LatencyStats:
+      type: object
+      required: [count, p50_ms, p95_ms, p99_ms, max_ms]
+      properties:
+        count: { type: integer, format: int64 }
+        p50_ms: { type: number }
+        p95_ms: { type: number }
+        p99_ms: { type: number }
+        max_ms: { type: number }
+
+    Latency:
+      type: object
+      required: [range, definition, summary, data]
+      properties:
+        range: { $ref: "#/components/schemas/Range" }
+        definition: { type: string }
+        summary: { $ref: "#/components/schemas/LatencyStats" }
+        data:
+          type: array
+          items:
+            allOf:
+              - type: object
+                required: [minute]
+                properties:
+                  minute: { type: string, format: date-time }
+              - $ref: "#/components/schemas/LatencyStats"
+
+    ErrorList:
+      type: object
+      required: [range, totals, by_reason, data, page]
+      properties:
+        range: { $ref: "#/components/schemas/Range" }
+        totals:
+          type: object
+          required: [processed, duplicate, dlq, error_rate]
+          properties:
+            processed: { type: integer, format: int64 }
+            duplicate: { type: integer, format: int64 }
+            dlq: { type: integer, format: int64 }
+            error_rate: { type: number, minimum: 0, maximum: 1 }
+        by_reason:
+          type: array
+          items:
+            type: object
+            required: [failure_class, failure_reason, count]
+            properties:
+              failure_class: { type: string }
+              failure_reason: { type: string }
+              count: { type: integer, format: int64 }
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, event_id, topic, partition, offset, failure_class, failure_reason, attempts, occurred_at]
+            properties:
+              id: { type: integer, format: int64 }
+              event_id: { type: string, nullable: true, description: Null when the payload could not be parsed }
+              topic: { type: string }
+              partition: { type: integer }
+              offset: { type: integer, format: int64 }
+              failure_class: { type: string, example: malformed }
+              failure_reason: { type: string, example: invalid_json }
+              attempts: { type: integer }
+              occurred_at: { type: string, format: date-time }
+        page: { $ref: "#/components/schemas/Page" }
+
+    AnomalyList:
+      type: object
+      required: [range, detector, data, page]
+      properties:
+        range: { $ref: "#/components/schemas/Range" }
+        detector:
+          type: object
+          properties:
+            method: { type: string, example: rolling_zscore }
+            interval: { type: string, example: "1m" }
+            baseline_windows: { type: integer }
+            min_z: { type: number }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Anomaly" }
+        page: { $ref: "#/components/schemas/Page" }
