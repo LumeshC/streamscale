@@ -10,12 +10,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/streamscale/streamscale/analytics-api/internal/anomaly"
-	"github.com/streamscale/streamscale/analytics-api/internal/httpx"
-	"github.com/streamscale/streamscale/analytics-api/internal/kafkalag"
-	"github.com/streamscale/streamscale/analytics-api/internal/live"
-	"github.com/streamscale/streamscale/analytics-api/internal/repo"
-	"github.com/streamscale/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/analytics-api/internal/anomaly"
+	"github.com/LumeshC/streamscale/analytics-api/internal/httpx"
+	"github.com/LumeshC/streamscale/analytics-api/internal/kafkalag"
+	"github.com/LumeshC/streamscale/analytics-api/internal/live"
+	"github.com/LumeshC/streamscale/analytics-api/internal/repo"
+	"github.com/LumeshC/streamscale/pkg/event"
 )
 
 // Pagination bounds for list endpoints.

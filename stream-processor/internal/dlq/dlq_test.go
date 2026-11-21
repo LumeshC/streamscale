@@ -3,8 +3,8 @@ package dlq
 import (
 	"testing"
 
+	"github.com/LumeshC/streamscale/stream-processor/internal/classify"
 	"github.com/segmentio/kafka-go"
-	"github.com/streamscale/streamscale/stream-processor/internal/classify"
 )
 
 func TestHeaderMap(t *testing.T) {

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LumeshC/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/pkg/rtstate"
 	"github.com/redis/go-redis/v9"
-	"github.com/streamscale/streamscale/pkg/event"
-	"github.com/streamscale/streamscale/pkg/rtstate"
 )
 
 //go:embed apply.lua

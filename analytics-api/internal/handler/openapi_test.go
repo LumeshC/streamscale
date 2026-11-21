@@ -12,7 +12,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/streamscale/streamscale/analytics-api/api"
+	"github.com/LumeshC/streamscale/analytics-api/api"
 )
 
 type specDoc struct {

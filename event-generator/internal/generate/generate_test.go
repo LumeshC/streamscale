@@ -3,7 +3,7 @@ package generate
 import (
 	"testing"
 
-	"github.com/streamscale/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/pkg/event"
 )
 
 func TestNextAlwaysValid(t *testing.T) {

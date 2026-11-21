@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/streamscale/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/pkg/event"
 )
 
 func TestInsertSQLShape(t *testing.T) {

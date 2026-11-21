@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/LumeshC/streamscale/pkg/event"
 	"github.com/redis/go-redis/v9"
-	"github.com/streamscale/streamscale/pkg/event"
 )
 
 // ErrUnavailable is returned by Tracker reads while the breaker is open.

@@ -6,14 +6,14 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/LumeshC/streamscale/pkg/analytics"
+	"github.com/LumeshC/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/stream-processor/internal/classify"
+	"github.com/LumeshC/streamscale/stream-processor/internal/dlq"
+	"github.com/LumeshC/streamscale/stream-processor/internal/retry"
+	"github.com/LumeshC/streamscale/stream-processor/internal/store"
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
-	"github.com/streamscale/streamscale/pkg/analytics"
-	"github.com/streamscale/streamscale/pkg/event"
-	"github.com/streamscale/streamscale/stream-processor/internal/classify"
-	"github.com/streamscale/streamscale/stream-processor/internal/dlq"
-	"github.com/streamscale/streamscale/stream-processor/internal/retry"
-	"github.com/streamscale/streamscale/stream-processor/internal/store"
 )
 
 // EventStore is the durable write path used by the processor.

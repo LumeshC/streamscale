@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/streamscale/streamscale/event-generator/internal/config"
-	"github.com/streamscale/streamscale/event-generator/internal/generate"
-	"github.com/streamscale/streamscale/event-generator/internal/produce"
-	"github.com/streamscale/streamscale/pkg/health"
-	"github.com/streamscale/streamscale/pkg/ktopic"
-	"github.com/streamscale/streamscale/pkg/logging"
+	"github.com/LumeshC/streamscale/event-generator/internal/config"
+	"github.com/LumeshC/streamscale/event-generator/internal/generate"
+	"github.com/LumeshC/streamscale/event-generator/internal/produce"
+	"github.com/LumeshC/streamscale/pkg/health"
+	"github.com/LumeshC/streamscale/pkg/ktopic"
+	"github.com/LumeshC/streamscale/pkg/logging"
 )
 
 func main() {

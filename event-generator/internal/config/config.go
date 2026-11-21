@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/streamscale/streamscale/pkg/envcfg"
-	"github.com/streamscale/streamscale/pkg/ktopic"
+	"github.com/LumeshC/streamscale/pkg/envcfg"
+	"github.com/LumeshC/streamscale/pkg/ktopic"
 )
 
 type Config struct {

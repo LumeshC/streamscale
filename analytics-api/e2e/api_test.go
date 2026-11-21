@@ -26,11 +26,11 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 
-	"github.com/streamscale/streamscale/analytics-api/api"
-	"github.com/streamscale/streamscale/analytics-api/internal/handler"
-	"github.com/streamscale/streamscale/analytics-api/internal/live"
-	"github.com/streamscale/streamscale/analytics-api/internal/repo"
-	"github.com/streamscale/streamscale/pkg/rtstate"
+	"github.com/LumeshC/streamscale/analytics-api/api"
+	"github.com/LumeshC/streamscale/analytics-api/internal/handler"
+	"github.com/LumeshC/streamscale/analytics-api/internal/live"
+	"github.com/LumeshC/streamscale/analytics-api/internal/repo"
+	"github.com/LumeshC/streamscale/pkg/rtstate"
 )
 
 func requireDocker(t *testing.T) {

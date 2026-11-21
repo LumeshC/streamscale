@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/streamscale/streamscale/stream-processor/internal/classify"
+	"github.com/LumeshC/streamscale/stream-processor/internal/classify"
 )
 
 type Config struct {

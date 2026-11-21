@@ -19,12 +19,12 @@ import (
 	tckafka "github.com/testcontainers/testcontainers-go/modules/kafka"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
-	"github.com/streamscale/streamscale/pkg/event"
-	"github.com/streamscale/streamscale/pkg/ktopic"
-	"github.com/streamscale/streamscale/stream-processor/internal/consume"
-	"github.com/streamscale/streamscale/stream-processor/internal/dlq"
-	"github.com/streamscale/streamscale/stream-processor/internal/retry"
-	"github.com/streamscale/streamscale/stream-processor/internal/store"
+	"github.com/LumeshC/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/pkg/ktopic"
+	"github.com/LumeshC/streamscale/stream-processor/internal/consume"
+	"github.com/LumeshC/streamscale/stream-processor/internal/dlq"
+	"github.com/LumeshC/streamscale/stream-processor/internal/retry"
+	"github.com/LumeshC/streamscale/stream-processor/internal/store"
 )
 
 func requireDocker(t *testing.T) {

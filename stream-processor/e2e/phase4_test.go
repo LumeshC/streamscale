@@ -17,13 +17,13 @@ import (
 	"github.com/segmentio/kafka-go"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 
-	"github.com/streamscale/streamscale/pkg/event"
-	"github.com/streamscale/streamscale/pkg/rtstate"
-	"github.com/streamscale/streamscale/stream-processor/internal/consume"
-	"github.com/streamscale/streamscale/stream-processor/internal/dlq"
-	"github.com/streamscale/streamscale/stream-processor/internal/realtime"
-	"github.com/streamscale/streamscale/stream-processor/internal/retry"
-	"github.com/streamscale/streamscale/stream-processor/internal/store"
+	"github.com/LumeshC/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/pkg/rtstate"
+	"github.com/LumeshC/streamscale/stream-processor/internal/consume"
+	"github.com/LumeshC/streamscale/stream-processor/internal/dlq"
+	"github.com/LumeshC/streamscale/stream-processor/internal/realtime"
+	"github.com/LumeshC/streamscale/stream-processor/internal/retry"
+	"github.com/LumeshC/streamscale/stream-processor/internal/store"
 )
 
 func startRedis(t *testing.T, ctx context.Context) string {

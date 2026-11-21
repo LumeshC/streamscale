@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/streamscale/streamscale/analytics-api/internal/kafkalag"
-	"github.com/streamscale/streamscale/analytics-api/internal/repo"
+	"github.com/LumeshC/streamscale/analytics-api/internal/kafkalag"
+	"github.com/LumeshC/streamscale/analytics-api/internal/repo"
 )
 
 // ---- fakeRepo: Phase 6 methods ----

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/streamscale/streamscale/pkg/envcfg"
-	"github.com/streamscale/streamscale/pkg/ktopic"
-	"github.com/streamscale/streamscale/stream-processor/internal/realtime"
+	"github.com/LumeshC/streamscale/pkg/envcfg"
+	"github.com/LumeshC/streamscale/pkg/ktopic"
+	"github.com/LumeshC/streamscale/stream-processor/internal/realtime"
 )
 
 type Config struct {

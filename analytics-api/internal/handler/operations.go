@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/streamscale/streamscale/analytics-api/internal/httpx"
-	"github.com/streamscale/streamscale/analytics-api/internal/kafkalag"
-	"github.com/streamscale/streamscale/analytics-api/internal/repo"
+	"github.com/LumeshC/streamscale/analytics-api/internal/httpx"
+	"github.com/LumeshC/streamscale/analytics-api/internal/kafkalag"
+	"github.com/LumeshC/streamscale/analytics-api/internal/repo"
 )
 
 // Operational endpoints (Phase 6): consumer lag, processing latency, errors.

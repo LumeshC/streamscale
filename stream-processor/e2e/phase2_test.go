@@ -13,11 +13,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/segmentio/kafka-go"
 
-	"github.com/streamscale/streamscale/pkg/event"
-	"github.com/streamscale/streamscale/stream-processor/internal/consume"
-	"github.com/streamscale/streamscale/stream-processor/internal/dlq"
-	"github.com/streamscale/streamscale/stream-processor/internal/retry"
-	"github.com/streamscale/streamscale/stream-processor/internal/store"
+	"github.com/LumeshC/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/stream-processor/internal/consume"
+	"github.com/LumeshC/streamscale/stream-processor/internal/dlq"
+	"github.com/LumeshC/streamscale/stream-processor/internal/retry"
+	"github.com/LumeshC/streamscale/stream-processor/internal/store"
 )
 
 func TestPhase2IdempotencyAndDLQ(t *testing.T) {

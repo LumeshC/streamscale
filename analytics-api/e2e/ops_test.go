@@ -13,11 +13,11 @@ import (
 	"github.com/segmentio/kafka-go"
 	tckafka "github.com/testcontainers/testcontainers-go/modules/kafka"
 
-	"github.com/streamscale/streamscale/analytics-api/api"
-	"github.com/streamscale/streamscale/analytics-api/internal/handler"
-	"github.com/streamscale/streamscale/analytics-api/internal/kafkalag"
-	"github.com/streamscale/streamscale/analytics-api/internal/live"
-	"github.com/streamscale/streamscale/analytics-api/internal/repo"
+	"github.com/LumeshC/streamscale/analytics-api/api"
+	"github.com/LumeshC/streamscale/analytics-api/internal/handler"
+	"github.com/LumeshC/streamscale/analytics-api/internal/kafkalag"
+	"github.com/LumeshC/streamscale/analytics-api/internal/live"
+	"github.com/LumeshC/streamscale/analytics-api/internal/repo"
 )
 
 // TestOperationalEndpoints covers /metrics/latency and /errors against real

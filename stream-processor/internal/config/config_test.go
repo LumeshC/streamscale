@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/streamscale/streamscale/pkg/ktopic"
+	"github.com/LumeshC/streamscale/pkg/ktopic"
 )
 
 func TestLoadDefaults(t *testing.T) {

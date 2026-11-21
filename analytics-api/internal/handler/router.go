@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/streamscale/streamscale/analytics-api/internal/httpx"
+	"github.com/LumeshC/streamscale/analytics-api/internal/httpx"
 )
 
 // Route is one public endpoint (also used to keep OpenAPI in sync in tests).

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/streamscale/streamscale/pkg/analytics"
-	"github.com/streamscale/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/pkg/analytics"
+	"github.com/LumeshC/streamscale/pkg/event"
 )
 
 // Config controls the in-process Go window engine.

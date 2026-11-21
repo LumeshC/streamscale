@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/streamscale/streamscale/analytics-api/api"
-	"github.com/streamscale/streamscale/analytics-api/internal/config"
-	"github.com/streamscale/streamscale/analytics-api/internal/handler"
-	"github.com/streamscale/streamscale/analytics-api/internal/kafkalag"
-	"github.com/streamscale/streamscale/analytics-api/internal/live"
-	"github.com/streamscale/streamscale/analytics-api/internal/repo"
-	"github.com/streamscale/streamscale/pkg/logging"
+	"github.com/LumeshC/streamscale/analytics-api/api"
+	"github.com/LumeshC/streamscale/analytics-api/internal/config"
+	"github.com/LumeshC/streamscale/analytics-api/internal/handler"
+	"github.com/LumeshC/streamscale/analytics-api/internal/kafkalag"
+	"github.com/LumeshC/streamscale/analytics-api/internal/live"
+	"github.com/LumeshC/streamscale/analytics-api/internal/repo"
+	"github.com/LumeshC/streamscale/pkg/logging"
 )
 
 func main() {

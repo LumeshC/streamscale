@@ -1,4 +1,4 @@
-module github.com/streamscale/streamscale
+module github.com/LumeshC/streamscale
 
 go 1.23.0
 

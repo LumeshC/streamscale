@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/streamscale/streamscale/pkg/envcfg"
+	"github.com/LumeshC/streamscale/pkg/envcfg"
 )
 
 type Config struct {

@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/streamscale/streamscale/analytics-api/internal/live"
-	"github.com/streamscale/streamscale/analytics-api/internal/repo"
-	"github.com/streamscale/streamscale/pkg/rtstate"
+	"github.com/LumeshC/streamscale/analytics-api/internal/live"
+	"github.com/LumeshC/streamscale/analytics-api/internal/repo"
+	"github.com/LumeshC/streamscale/pkg/rtstate"
 )
 
 var now = time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)

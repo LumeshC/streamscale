@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/LumeshC/streamscale/pkg/event"
 	"github.com/segmentio/kafka-go"
-	"github.com/streamscale/streamscale/pkg/event"
 )
 
 type Writer struct {

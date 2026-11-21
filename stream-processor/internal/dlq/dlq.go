@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/LumeshC/streamscale/stream-processor/internal/classify"
 	"github.com/segmentio/kafka-go"
-	"github.com/streamscale/streamscale/stream-processor/internal/classify"
 )
 
 // Meta is failure metadata attached as Kafka headers on the DLQ message.

@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/LumeshC/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/stream-processor/internal/classify"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/streamscale/streamscale/pkg/event"
-	"github.com/streamscale/streamscale/stream-processor/internal/classify"
 )
 
 type Postgres struct {

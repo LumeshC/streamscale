@@ -4,8 +4,8 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/streamscale/streamscale/pkg/analytics"
-	"github.com/streamscale/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/pkg/analytics"
+	"github.com/LumeshC/streamscale/pkg/event"
 )
 
 type accumulator struct {

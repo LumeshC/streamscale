@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/LumeshC/streamscale/pkg/event"
 	"github.com/google/uuid"
-	"github.com/streamscale/streamscale/pkg/event"
 )
 
 var regions = []string{"us-east-1", "us-west-2", "eu-west-1", "ap-south-1"}

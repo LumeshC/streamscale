@@ -8,8 +8,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/LumeshC/streamscale/pkg/rtstate"
 	"github.com/redis/go-redis/v9"
-	"github.com/streamscale/streamscale/pkg/rtstate"
 )
 
 // ErrDisabled is returned when Redis is turned off by configuration.

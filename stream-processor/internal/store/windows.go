@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/streamscale/streamscale/pkg/analytics"
-	"github.com/streamscale/streamscale/stream-processor/internal/classify"
+	"github.com/LumeshC/streamscale/pkg/analytics"
+	"github.com/LumeshC/streamscale/stream-processor/internal/classify"
 )
 
 // WindowSink persists closed analytics windows to PostgreSQL.

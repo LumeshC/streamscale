@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/streamscale/streamscale/pkg/event"
-	"github.com/streamscale/streamscale/stream-processor/internal/classify"
+	"github.com/LumeshC/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/stream-processor/internal/classify"
 )
 
 // memIdempotencyStore proves the duplicate contract used by Process without Postgres.

@@ -3,7 +3,7 @@ package analytics
 import (
 	"context"
 
-	"github.com/streamscale/streamscale/pkg/event"
+	"github.com/LumeshC/streamscale/pkg/event"
 )
 
 // Engine is the stream analytics processing contract.
